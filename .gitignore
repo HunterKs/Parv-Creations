@@ -1,0 +1,24 @@
+# --- PARV CREATIONS FILE ISOLATION ---
+.env
+.env.local
+.env.production
+
+# Compiled backend binary executables
+backend/main_prod_binary
+backend/backend_app
+*.exe
+*.bin
+
+# System diagnostics
+*.log
+vps-config/logs/
+
+# Node/Next.js dynamic builds
+node_modules/
+.next/
+dist/
+
+# --- PROJECT MANAGEMENT & AUDIT TRACKING (LOCAL ONLY) ---
+SRS.md
+KT_GUIDE.md
+CHANGELOG.md
