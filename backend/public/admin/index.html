@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parv Creations Admin Dashboard</title>
+    <link rel="stylesheet" href="/admin/css/style.css">
+    <link rel="stylesheet" href="/admin/css/theme.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1 class="logo">Parv Creations Admin</h1>
+                <nav class="header-nav">
+                    <button id="theme-toggle" class="btn-theme">Toggle Theme</button>
+                    <div class="user-info">
+                        <span id="username">Admin User</span>
+                        <button id="logout-btn" class="btn-logout">Logout</button>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <div class="dashboard-body">
+            <aside class="sidebar">
+                <nav class="sidebar-nav">
+                    <ul>
+                        <li><a href="/admin/users/" class="nav-link">Users</a></li>
+                        <li><a href="/admin/roles/" class="nav-link">Roles</a></li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <main class="main-content">
+                <!-- Page-specific content will be loaded here -->
+                <div id="page-content">
+                    <div class="welcome-message">
+                        <h2>Welcome to the Admin Dashboard</h2>
+                        <p>Use the sidebar to navigate to different management sections.</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/admin/js/theme.js"></script>
+    <script src="/admin/js/auth.js"></script>
+    <script src="/admin/js/notification.js"></script>
+    <script src="/admin/js/main.js"></script>
+</body>
+</html>
