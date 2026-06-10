@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gorilla/handlers"
+	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	"github.com/HunterKs/Parv-Creations/backend/internal/auth"
@@ -40,6 +40,8 @@ func main() {
 		w.Write([]byte(`{"status":"healthy","database":"connected","project":"Parv Creations Engine"}`))
 	}).Methods("GET")
 
+	r.PathPrefix("/admin/").Handler(http.StripPrefix("/admin/", http.FileServer(http.Dir("public/admin"))))
+
 	// Admin routes (require authentication)
 	admin := r.PathPrefix("/api/v1/admin").Subrouter()
 	// Apply authentication middleware to all admin routes
@@ -65,9 +67,9 @@ func main() {
 
 	// Wrap the router with CORS and logging middleware (optional but useful for development)
 	// In production, you might want to adjust CORS settings.
-	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
-	originsOk := handlers.AllowedOrigins([]string{"*"}) // Be more restrictive in production
-	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
+	headersOk := gorillaHandlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
+	originsOk := gorillaHandlers.AllowedOrigins([]string{"*"}) // Be more restrictive in production
+	methodsOk := gorillaHandlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
 
 	// Set up HTTP server
 	port := os.Getenv("PORT")
@@ -76,7 +78,7 @@ func main() {
 	}
 
 	log.Printf("Parv Creations Core Engine cleanly operational on port %s...", port)
-	if err := http.ListenAndServe(":"+port, handlers.CORS(headersOk, originsOk, methodsOk)(r)); err != nil {
+	if err := http.ListenAndServe(":"+port, gorillaHandlers.CORS(headersOk, originsOk, methodsOk)(r)); err != nil {
 		log.Fatalf("Server bootstrap failed: %v", err)
 	}
 }

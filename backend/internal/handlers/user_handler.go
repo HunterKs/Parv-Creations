@@ -8,15 +8,13 @@ import (
 	"github.com/HunterKs/Parv-Creations/backend/internal/models"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // UserHandler handles user and role CRUD operations.
 type UserHandler struct {
-	userColl   *mongo.Collection
-	roleColl   *mongo.Collection
+	userColl *mongo.Collection
+	roleColl *mongo.Collection
 }
 
 // NewUserHandler creates a new UserHandler with the given collections.
@@ -25,6 +23,11 @@ func NewUserHandler(userColl, roleColl *mongo.Collection) *UserHandler {
 		userColl: userColl,
 		roleColl: roleColl,
 	}
+}
+
+func parseObjectID(hex string) (bson.ObjectID, bool) {
+	objectID, err := bson.ObjectIDFromHex(hex)
+	return objectID, err == nil
 }
 
 // GetUsers handles GET /users
@@ -54,11 +57,11 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	if !primitive.IsObjectIDHex(id) {
+	objectID, ok := parseObjectID(id)
+	if !ok {
 		respondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
-	objectID := primitive.ObjectIDHex(id)
 
 	var user models.User
 	err := h.userColl.FindOne(r.Context(), bson.M{"_id": objectID}).Decode(&user)
@@ -87,11 +90,11 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate role ID
-	if !primitive.IsObjectIDHex(input.RoleID) {
+	roleID, ok := parseObjectID(input.RoleID)
+	if !ok {
 		respondError(w, http.StatusBadRequest, "Invalid role ID")
 		return
 	}
-	roleID := primitive.ObjectIDHex(input.RoleID)
 
 	// Check if role exists
 	var role models.Role
@@ -133,11 +136,11 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	if !primitive.IsObjectIDHex(id) {
+	objectID, ok := parseObjectID(id)
+	if !ok {
 		respondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
-	objectID := primitive.ObjectIDHex(id)
 
 	var input struct {
 		Email     string `json:"email"`
@@ -180,11 +183,11 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		update["last_name"] = input.LastName
 	}
 	if input.RoleID != "" {
-		if !primitive.IsObjectIDHex(input.RoleID) {
+		roleID, ok := parseObjectID(input.RoleID)
+		if !ok {
 			respondError(w, http.StatusBadRequest, "Invalid role ID")
 			return
 		}
-		roleID := primitive.ObjectIDHex(input.RoleID)
 		// Check if role exists
 		var role models.Role
 		err := h.roleColl.FindOne(r.Context(), bson.M{"_id": roleID}).Decode(&role)
@@ -225,11 +228,11 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	if !primitive.IsObjectIDHex(id) {
+	objectID, ok := parseObjectID(id)
+	if !ok {
 		respondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
-	objectID := primitive.ObjectIDHex(id)
 
 	// Delete the user
 	result, err := h.userColl.DeleteOne(r.Context(), bson.M{"_id": objectID})
@@ -265,11 +268,11 @@ func (h *UserHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetRoleByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	if !primitive.IsObjectIDHex(id) {
+	objectID, ok := parseObjectID(id)
+	if !ok {
 		respondError(w, http.StatusBadRequest, "Invalid role ID")
 		return
 	}
-	objectID := primitive.ObjectIDHex(id)
 
 	var role models.Role
 	err := h.roleColl.FindOne(r.Context(), bson.M{"_id": objectID}).Decode(&role)
@@ -319,11 +322,11 @@ func (h *UserHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	if !primitive.IsObjectIDHex(id) {
+	objectID, ok := parseObjectID(id)
+	if !ok {
 		respondError(w, http.StatusBadRequest, "Invalid role ID")
 		return
 	}
-	objectID := primitive.ObjectIDHex(id)
 
 	var input struct {
 		Name        string   `json:"name"`
@@ -385,11 +388,11 @@ func (h *UserHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) DeleteRole(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	if !primitive.IsObjectIDHex(id) {
+	objectID, ok := parseObjectID(id)
+	if !ok {
 		respondError(w, http.StatusBadRequest, "Invalid role ID")
 		return
 	}
-	objectID := primitive.ObjectIDHex(id)
 
 	// Delete the role
 	result, err := h.roleColl.DeleteOne(r.Context(), bson.M{"_id": objectID})
@@ -403,4 +406,3 @@ func (h *UserHandler) DeleteRole(w http.ResponseWriter, r *http.Request) {
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"message": "Role deleted"})
 }
-

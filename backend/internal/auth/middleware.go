@@ -51,12 +51,11 @@ func GetClaimsFromContext(r *http.Request) (*models.SessionClaims, bool) {
 func PermissionMiddleware(requiredPermission models.Permission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claims, ok := GetClaimsFromContext(r)
+			_, ok := GetClaimsFromContext(r)
 			if !ok {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
-			claims = claims
 
 			// TODO: Implement actual permission check by fetching user role and permissions from DB.
 			// For now, we'll allow the request to proceed and note that this is a placeholder.

@@ -7,7 +7,6 @@ import (
 
 	"github.com/HunterKs/Parv-Creations/backend/internal/auth"
 	"github.com/HunterKs/Parv-Creations/backend/internal/models"
-	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
