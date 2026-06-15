@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -33,6 +34,8 @@ func parseObjectID(hex string) (bson.ObjectID, bool) {
 // GetUsers handles GET /users
 // Returns a list of users (without password hashes)
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.GetUsers start")
+
 	cursor, err := h.userColl.Find(r.Context(), bson.M{})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
@@ -55,6 +58,8 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 // GetUserByID handles GET /users/{id}
 func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.GetUserByID start")
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 	objectID, ok := parseObjectID(id)
@@ -76,6 +81,8 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 // CreateUser handles POST /users
 // Expected JSON body: { "email": "...", "password": "...", "first_name": "...", "last_name": "...", "role_id": "...", "is_active": true/false }
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.CreateUser start")
+
 	var input struct {
 		Email     string `json:"email" binding:"required,email"`
 		Password  string `json:"password" binding:"required"`
@@ -134,6 +141,8 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 // UpdateUser handles PUT /users/{id}
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.UpdateUser start")
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 	objectID, ok := parseObjectID(id)
@@ -226,6 +235,8 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 // DeleteUser handles DELETE /users/{id}
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.DeleteUser start")
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 	objectID, ok := parseObjectID(id)
@@ -249,6 +260,8 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 // GetRoles handles GET /roles
 func (h *UserHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.GetRoles start")
+
 	cursor, err := h.roleColl.Find(r.Context(), bson.M{})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
@@ -266,6 +279,8 @@ func (h *UserHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 
 // GetRoleByID handles GET /roles/{id}
 func (h *UserHandler) GetRoleByID(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.GetRoleByID start")
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 	objectID, ok := parseObjectID(id)
@@ -286,6 +301,8 @@ func (h *UserHandler) GetRoleByID(w http.ResponseWriter, r *http.Request) {
 // CreateRole handles POST /roles
 // Expected JSON body: { "name": "...", "description": "...", "permissions": ["perm1", "perm2", ...] }
 func (h *UserHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.CreateRole start")
+
 	var input struct {
 		Name        string   `json:"name" binding:"required"`
 		Description string   `json:"description"`
@@ -297,9 +314,9 @@ func (h *UserHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert permission strings to Permission type
-	var permissions []models.Permission
+	var permissions []models.PermissionKey
 	for _, p := range input.Permissions {
-		permissions = append(permissions, models.Permission(p))
+		permissions = append(permissions, models.PermissionKey(p))
 	}
 
 	role := models.Role{
@@ -320,6 +337,8 @@ func (h *UserHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 
 // UpdateRole handles PUT /roles/{id}
 func (h *UserHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.UpdateRole start")
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 	objectID, ok := parseObjectID(id)
@@ -355,9 +374,9 @@ func (h *UserHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		update["description"] = input.Description
 	}
 	if len(input.Permissions) > 0 {
-		var permissions []models.Permission
+		var permissions []models.PermissionKey
 		for _, p := range input.Permissions {
-			permissions = append(permissions, models.Permission(p))
+			permissions = append(permissions, models.PermissionKey(p))
 		}
 		update["permissions"] = permissions
 	}
@@ -386,6 +405,8 @@ func (h *UserHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 // DeleteRole handles DELETE /roles/{id}
 func (h *UserHandler) DeleteRole(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UserHandler.DeleteRole start")
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 	objectID, ok := parseObjectID(id)

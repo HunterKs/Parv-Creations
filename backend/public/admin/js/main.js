@@ -1,27 +1,35 @@
 /* Main Dashboard Page Script */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Load username from auth if available
     loadUserInfo();
 
-    // Set up logout button
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', async (e) => {
+        logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            const success = await auth.logout();
-            if (success) {
-                window.location.href = '/admin/login.html';
-            } else {
-                showNotification('Logout failed', 'error');
-            }
+
+            fetch(API_BASE_URL + '/admin/auth/logout', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(res => {
+                if (res.ok) {
+                    localStorage.removeItem('session_token');
+                    sessionStorage.clear();
+                    window.location.href = '/admin/login.html';
+                } else {
+                    showToast('Logout failed');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Logout failed');
+            });
         });
-    });
+    }
 });
 
-/**
- * Load and display the current user's information
- */
 async function loadUserInfo() {
     try {
         const user = await auth.getCurrentUser();
@@ -32,4 +40,12 @@ async function loadUserInfo() {
     } catch (error) {
         console.error('Failed to load user info:', error);
     }
+}
+
+function showToast(message) {
+    if (typeof showNotification === 'function') {
+        showNotification(message, 'error');
+        return;
+    }
+    console.error(message);
 }

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -32,6 +33,8 @@ func NewAuthHandler(userColl, roleColl, rememberMeColl *mongo.Collection) *AuthH
 // Login handles the login request.
 // Expected JSON body: { "email": "...", "password": "...", "remember": true/false }
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	log.Printf("AuthHandler.Login start")
+
 	var creds models.Credentials
 	if err := decodeJSON(r, &creds); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
@@ -104,20 +107,42 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Respond with user info (without password hash)
 	user.PasswordHash = ""
-	respondJSON(w, http.StatusOK, user)
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Login successful",
+		"token":   sessionToken,
+		"user":    user,
+	})
 }
 
 // Logout handles the logout request.
 // Clears the session cookie and removes the remember-me token if present.
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5500")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	log.Println("AuthHandler.Logout start")
+
+	if claims, ok := auth.GetClaimsFromContext(r); ok {
+		if userID, err := bson.ObjectIDFromHex(claims.UserID); err == nil {
+			if _, err := h.rememberMeColl.DeleteMany(r.Context(), bson.M{"user_id": userID}); err != nil {
+				log.Printf("AuthHandler.Logout remember-me cleanup failed: %v", err)
+			}
+		}
+	}
+
 	// Clear session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     h.sessionCookieName,
 		Value:    "",
 		Path:     "/",
-		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
 		MaxAge:   -1,
+		HttpOnly: true,
 	})
 
 	// Clear remember-me cookie
@@ -130,19 +155,69 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 	})
 
-	// TODO: Optionally, we could delete the remember-me token from the database
-	// based on the token in the cookie, but we don't have the token hash here.
-	// We would need to look up the token by its hash, but we only have the plain token.
-	// We could store the plain token hash in the cookie? No, that's insecure.
-	// Instead, we can delete the remember-me token by the user ID when we have the user from context.
-	// But for simplicity, we'll just clear the cookies and note that the token will expire.
-	// In a more secure implementation, we would store the token hash in the cookie (encrypted) or
-	// we would remove the token from the DB when we have the user ID (from the session token).
-	// Since we are logging out, we can remove the remember-me token for the current user if we have the user ID.
-	// We'll get the user ID from the session token (if present) and delete the token.
+	http.SetCookie(w, &http.Cookie{
+		Name:     "Authorization",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		MaxAge:   -1,
+	})
 
-	// For now, we'll just respond.
-	respondJSON(w, http.StatusOK, map[string]string{"message": "Logged out successfully"})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		MaxAge:   -1,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"success","message":"Logged out successfully"}`))
+}
+
+// Status confirms that the current request has a valid authenticated session.
+func (h *AuthHandler) Status(w http.ResponseWriter, r *http.Request) {
+	log.Printf("AuthHandler.Status start")
+
+	claims, ok := auth.GetClaimsFromContext(r)
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"authenticated": true,
+		"email":         claims.Email,
+	})
+}
+
+// Me returns the current authenticated user without password material.
+func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
+	log.Printf("AuthHandler.Me start")
+
+	claims, ok := auth.GetClaimsFromContext(r)
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	userID, err := bson.ObjectIDFromHex(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	var user models.User
+	if err := h.userColl.FindOne(r.Context(), bson.M{"_id": userID}).Decode(&user); err != nil {
+		respondError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	user.PasswordHash = ""
+	respondJSON(w, http.StatusOK, user)
 }
 
 // decodeJSON is a helper to decode JSON request body into a struct.

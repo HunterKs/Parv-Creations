@@ -1,6 +1,8 @@
 /* Login Page Script */
 
 document.addEventListener('DOMContentLoaded', function() {
+    hydrateRememberedCredentials();
+
     const form = document.getElementById('login-form');
     if (!form) return;
 
@@ -55,11 +57,34 @@ async function login() {
         };
 
         // Send login request
-        const response = await api.post('/auth/login', loginData);
+        const response = await fetch(`${API_BASE_URL}/admin/auth/login`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(loginData)
+        });
 
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Invalid email or password');
+        }
+
+        const result = await response.json();
+        if (result.token) {
+            localStorage.setItem('jwt', result.token);
+            sessionStorage.setItem('jwt', result.token);
+        }
+
+        if (remember) {
+            localStorage.setItem('remembered_email', email);
+            localStorage.setItem('remembered_password', password);
+            localStorage.setItem('remember_me_checked', 'true');
+        } else {
+            localStorage.removeItem('remembered_email');
+            localStorage.removeItem('remembered_password');
+            localStorage.removeItem('remember_me_checked');
         }
 
         // Login successful
@@ -81,4 +106,16 @@ async function login() {
         submitButton.innerHTML = originalButtonText;
         submitButton.disabled = false;
     }
+}
+
+function hydrateRememberedCredentials() {
+    if (localStorage.getItem('remember_me_checked') !== 'true') return;
+
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const rememberCheckbox = document.getElementById('rememberMe') || document.getElementById('remember');
+
+    if (emailInput) emailInput.value = localStorage.getItem('remembered_email') || '';
+    if (passwordInput) passwordInput.value = localStorage.getItem('remembered_password') || '';
+    if (rememberCheckbox) rememberCheckbox.checked = true;
 }

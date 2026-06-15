@@ -48,7 +48,7 @@ func GetClaimsFromContext(r *http.Request) (*models.SessionClaims, bool) {
 
 // PermissionMiddleware checks if the user has the required permission.
 // It should be used after AuthMiddleware.
-func PermissionMiddleware(requiredPermission models.Permission) func(http.Handler) http.Handler {
+func PermissionMiddleware(requiredPermission models.PermissionKey) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, ok := GetClaimsFromContext(r)

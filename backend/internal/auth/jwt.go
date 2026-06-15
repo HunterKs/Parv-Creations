@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"time"
 
@@ -79,16 +81,11 @@ func ParseJWT(tokenString string) (*models.SessionClaims, error) {
 // GenerateRememberMeToken creates a random token and its hash for remember-me functionality.
 // Returns the plain token (to be sent to the user) and the hash (to be stored in DB).
 func GenerateRememberMeToken() (string, string, error) {
-	// Generate a random 32-byte token
 	tokenBytes := make([]byte, 32)
-	// Note: In a real app, you should use a cryptographically random source like crypto/rand.
-	// For simplicity, we'll use a pseudo-random generator here, but this is NOT secure for production.
-	// We'll leave a TODO to replace with proper random generation.
-	// TODO: Replace with crypto/rand.Read
-	for i := 0; i < len(tokenBytes); i++ {
-		tokenBytes[i] = byte(i) // This is just for demonstration! INSECURE.
+	if _, err := rand.Read(tokenBytes); err != nil {
+		return "", "", err
 	}
-	token := string(tokenBytes)
+	token := base64.RawURLEncoding.EncodeToString(tokenBytes)
 	hash, err := HashPassword(token)
 	if err != nil {
 		return "", "", err

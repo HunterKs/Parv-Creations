@@ -1,6 +1,6 @@
 /* Authentication Helper Functions */
 
-const API_BASE = '/api/v1/admin';
+const API_BASE = `${API_BASE_URL}/admin`;
 
 /**
  * Check if the user is authenticated by looking for a valid session token
@@ -47,14 +47,20 @@ async function logout() {
             method: 'POST',
             credentials: 'include'
         });
-        // Clear any local storage if needed
-        localStorage.removeItem('token');
-        sessionStorage.removeItem('token');
+        purgeLocalAuthState();
         return response.ok;
     } catch (error) {
         console.error('Logout failed:', error);
+        purgeLocalAuthState();
         return false;
     }
+}
+
+function purgeLocalAuthState() {
+    document.cookie = 'session_token=; Max-Age=0; path=/';
+    document.cookie = 'jwt=; Max-Age=0; path=/';
+    localStorage.clear();
+    sessionStorage.clear();
 }
 
 /**
@@ -83,12 +89,8 @@ function setupLogoutListeners() {
         if (e.target.matches('[data-logout]')) {
             e.preventDefault();
             const success = await logout();
-            if (success) {
-                // Redirect to login page
-                window.location.href = '/admin/login.html';
-            } else {
-                showNotification('Logout failed', 'error');
-            }
+            if (!success) showNotification('Logout failed', 'error');
+            window.location.href = 'http://localhost:5500/admin/login.html';
         }
     });
 }
@@ -107,6 +109,7 @@ window.auth = {
     isAuthenticated,
     getCurrentUser,
     logout,
+    purgeLocalAuthState,
     setupAuthGuard,
     setupLogoutListeners,
     initAuth

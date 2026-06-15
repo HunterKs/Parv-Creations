@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permissions Management - Parv Creations Admin</title>
+    <link rel="stylesheet" href="/admin/css/style.css">
+    <link rel="stylesheet" href="/admin/css/theme.css">
+    <link rel="stylesheet" href="/admin/css/table.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1 class="logo">Parv Creations Admin</h1>
+                <nav class="header-nav">
+                    <button id="theme-toggle" class="btn-theme">Toggle Theme</button>
+                    <div class="user-info">
+                        <span id="username">Admin User</span>
+                        <button id="logout-btn" class="btn-logout">Logout</button>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <div class="dashboard-body">
+            <aside class="sidebar">
+                <nav class="sidebar-nav">
+                    <ul>
+                        <li><a href="/admin/users/" class="nav-link">Users</a></li>
+                        <li><a href="/admin/roles/" class="nav-link">Roles</a></li>
+                        <li><a href="/admin/permissions.html" class="nav-link active">Permissions</a></li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <main class="main-content">
+                <div class="page-header">
+                    <h2>Permissions Management</h2>
+                    <div class="actions">
+                        <button type="button" id="add-permission-btn" class="btn btn-success">Add New Permission</button>
+                    </div>
+                </div>
+
+                <form id="permission-form" class="form-container" hidden>
+                    <input type="hidden" id="permission-id">
+                    <div class="form-group">
+                        <label for="permission-key">Key</label>
+                        <input type="text" id="permission-key" name="key" placeholder="permissions:read" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="permission-name">Name</label>
+                        <input type="text" id="permission-name" name="name" placeholder="Read permissions" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="permission-description">Description</label>
+                        <textarea id="permission-description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="cancel-permission-btn" class="btn btn-outline">Cancel</button>
+                        <button type="submit" id="save-permission-btn" class="btn btn-primary">Save Permission</button>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="data-table" id="permissions-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Key</th>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" class="text-center">Loading permissions...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/admin/js/theme.js"></script>
+    <script src="/admin/js/config.js"></script>
+    <script src="/admin/js/auth.js"></script>
+    <script src="/admin/js/notification.js"></script>
+    <script src="/admin/js/main.js"></script>
+    <script src="/admin/js/permissions.js"></script>
+</body>
+</html>

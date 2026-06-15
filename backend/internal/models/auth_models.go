@@ -6,16 +6,55 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-// Permission represents a fine-grained action that can be performed.
+// PermissionKey is the stable machine-readable identifier for an action.
 // Example: "products:write", "users:manage", "orders:read"
-type Permission string
+type PermissionKey string
+
+const (
+	PermissionUsersRead         PermissionKey = "users:read"
+	PermissionUsersWrite        PermissionKey = "users:write"
+	PermissionUsersDelete       PermissionKey = "users:delete"
+	PermissionRolesRead         PermissionKey = "roles:read"
+	PermissionRolesWrite        PermissionKey = "roles:write"
+	PermissionRolesDelete       PermissionKey = "roles:delete"
+	PermissionPermissionsRead   PermissionKey = "permissions:read"
+	PermissionPermissionsWrite  PermissionKey = "permissions:write"
+	PermissionPermissionsDelete PermissionKey = "permissions:delete"
+	PermissionAuthManage        PermissionKey = "auth:manage"
+)
+
+// Permission represents a system permission document.
+type Permission struct {
+	ID          bson.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Key         PermissionKey `bson:"key" json:"key" binding:"required"`
+	Name        string        `bson:"name" json:"name" binding:"required"`
+	Description string        `bson:"description" json:"description"`
+	CreatedAt   time.Time     `bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time     `bson:"updated_at" json:"updated_at"`
+}
+
+// AllSystemPermissions returns every built-in permission key assigned to SuperAdmin.
+func AllSystemPermissions() []PermissionKey {
+	return []PermissionKey{
+		PermissionUsersRead,
+		PermissionUsersWrite,
+		PermissionUsersDelete,
+		PermissionRolesRead,
+		PermissionRolesWrite,
+		PermissionRolesDelete,
+		PermissionPermissionsRead,
+		PermissionPermissionsWrite,
+		PermissionPermissionsDelete,
+		PermissionAuthManage,
+	}
+}
 
 // Role defines a set of permissions that can be assigned to a user.
 type Role struct {
 	ID          bson.ObjectID   `bson:"_id,omitempty" json:"id,omitempty"`
 	Name        string          `bson:"name" json:"name" binding:"required"`
 	Description string          `bson:"description" json:"description"`
-	Permissions []Permission    `bson:"permissions" json:"permissions"`
+	Permissions []PermissionKey `bson:"permissions" json:"permissions"`
 	CreatedAt   time.Time       `bson:"created_at" json:"created_at"`
 	UpdatedAt   time.Time       `bson:"updated_at" json:"updated_at"`
 }
@@ -24,16 +63,17 @@ type Role struct {
 // Password is stored as a bcrypt hash.
 // RememberMeTokens are stored in a separate collection (see RememberMeToken).
 type User struct {
-	ID           bson.ObjectID   `bson:"_id,omitempty" json:"id,omitempty"`
-	Email        string          `bson:"email" json:"email" binding:"required,email"`
-	PasswordHash string          `bson:"password_hash" json:"-"` // Never exposed in JSON
-	FirstName    string          `bson:"first_name" json:"first_name" binding:"required"`
-	LastName     string          `bson:"last_name" json:"last_name" binding:"required"`
-	RoleID       bson.ObjectID   `bson:"role_id" json:"role_id" binding:"required"` // Reference to Role
-	IsActive     bool            `bson:"is_active" json:"is_active"`
-	LastLoginAt  time.Time       `bson:"last_login_at" json:"last_login_at"`
-	CreatedAt    time.Time       `bson:"created_at" json:"created_at"`
-	UpdatedAt    time.Time       `bson:"updated_at" json:"updated_at"`
+	ID           bson.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Email        string        `bson:"email" json:"email" binding:"required,email"`
+	PasswordHash string        `bson:"password_hash" json:"-"` // Never exposed in JSON
+	FirstName    string        `bson:"first_name" json:"first_name" binding:"required"`
+	LastName     string        `bson:"last_name" json:"last_name" binding:"required"`
+	RoleID       bson.ObjectID `bson:"role_id" json:"role_id" binding:"required"` // Reference to Role
+	Role         *Role         `bson:"-" json:"role,omitempty"`
+	IsActive     bool          `bson:"is_active" json:"is_active"`
+	LastLoginAt  time.Time     `bson:"last_login_at" json:"last_login_at"`
+	CreatedAt    time.Time     `bson:"created_at" json:"created_at"`
+	UpdatedAt    time.Time     `bson:"updated_at" json:"updated_at"`
 }
 
 // Credentials is used for login requests.
@@ -46,11 +86,11 @@ type Credentials struct {
 // RememberMeToken stores a long-lived token for "remember me" functionality.
 // We store a bcrypt hash of the token, and the token is sent to the user as a cookie.
 type RememberMeToken struct {
-	ID        bson.ObjectID   `bson:"_id,omitempty" json:"id,omitempty"`
-	UserID    bson.ObjectID   `bson:"user_id" json:"user_id" binding:"required"`
-	TokenHash string          `bson:"token_hash" json:"-"` // bcrypt hash of the token
-	ExpiresAt time.Time       `bson:"expires_at" json:"expires_at"`
-	CreatedAt time.Time       `bson:"created_at" json:"created_at"`
+	ID        bson.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	UserID    bson.ObjectID `bson:"user_id" json:"user_id" binding:"required"`
+	TokenHash string        `bson:"token_hash" json:"-"` // bcrypt hash of the token
+	ExpiresAt time.Time     `bson:"expires_at" json:"expires_at"`
+	CreatedAt time.Time     `bson:"created_at" json:"created_at"`
 }
 
 // Session represents a session stored in a signed cookie.
@@ -60,9 +100,9 @@ type RememberMeToken struct {
 // We'll implement a simple session struct that can be signed and validated.
 // For now, we'll just define the claims we want in the token.
 type SessionClaims struct {
-	UserID   string `json:"user_id"`
-	RoleID   string   `json:"role_id"`
-	Email    string   `json:"email"`
+	UserID    string `json:"user_id"`
+	RoleID    string `json:"role_id"`
+	Email     string `json:"email"`
 	ExpiresAt int64  `json:"exp"` // Standard JWT exp claim
 	IssuedAt  int64  `json:"iat"` // Standard JWT iat claim
 }

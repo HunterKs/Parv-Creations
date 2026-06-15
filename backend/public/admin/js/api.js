@@ -1,6 +1,6 @@
 /* API Client for Communicating with the Backend */
 
-const API_BASE = '/api/v1/admin';
+const API_BASE = `${API_BASE_URL}/admin`;
 
 /**
  * Make an HTTP request to the API

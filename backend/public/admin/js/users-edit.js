@@ -43,11 +43,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             const success = await auth.logout();
-            if (success) {
-                window.location.href = '/admin/login.html';
-            } else {
-                showNotification('Logout failed', 'error');
-            }
+            if (!success) showNotification('Logout failed', 'error');
+            window.location.href = 'http://localhost:5500/admin/login.html';
         });
     }
 });
