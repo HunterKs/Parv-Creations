@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/HunterKs/Parv-Creations/backend/internal/models"
 )
@@ -10,16 +11,23 @@ import (
 // AuthMiddleware validates the JWT token from the HttpOnly cookie and sets user info in context.
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := bearerTokenFromHeader(r.Header.Get("Authorization"))
+
 		// Get the session cookie
-		cookie, err := r.Cookie("session_token")
-		if err != nil {
+		if token == "" {
+			cookie, err := r.Cookie("session_token")
+			if err == nil && cookie.Value != "" {
+				token = cookie.Value
+			}
+		}
+		if token == "" {
 			// No session cookie, unauthorized
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		// Parse and validate the JWT token
-		claims, err := ParseJWT(cookie.Value)
+		claims, err := ParseJWT(token)
 		if err != nil {
 			http.Error(w, "Unauthorized: invalid token", http.StatusUnauthorized)
 			return
@@ -29,6 +37,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), userClaimsKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func bearerTokenFromHeader(header string) string {
+	const prefix = "Bearer "
+	if !strings.HasPrefix(header, prefix) {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(header, prefix))
 }
 
 // contextKey is a type to avoid collisions in context.
@@ -51,21 +67,32 @@ func GetClaimsFromContext(r *http.Request) (*models.SessionClaims, bool) {
 func PermissionMiddleware(requiredPermission models.PermissionKey) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, ok := GetClaimsFromContext(r)
+			claims, ok := GetClaimsFromContext(r)
 			if !ok {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
 
-			// TODO: Implement actual permission check by fetching user role and permissions from DB.
-			// For now, we'll allow the request to proceed and note that this is a placeholder.
-			// In a real implementation, we would:
-			// 1. Fetch the user from the DB using claims.UserID
-			// 2. Fetch the user's role
-			// 3. Check if the requiredPermission is in the role's permissions
-			// 4. If not, return http.StatusForbidden
-			_ = requiredPermission // Avoid unused parameter error
-			next.ServeHTTP(w, r)
+			if claims.RoleName == "SuperAdmin" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if requiredPermission == "" || hasPermission(claims.Permissions, requiredPermission) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			http.Error(w, "Forbidden", http.StatusForbidden)
 		})
 	}
+}
+
+func hasPermission(permissions []models.PermissionKey, requiredPermission models.PermissionKey) bool {
+	for _, permission := range permissions {
+		if permission == requiredPermission {
+			return true
+		}
+	}
+	return false
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/HunterKs/Parv-Creations/backend/internal/models"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const (
@@ -17,12 +18,22 @@ const (
 	superAdminRoleName = "SuperAdmin"
 )
 
-// SeedData provisions the baseline SuperAdmin role and user if they do not exist.
-func SeedData(userColl, roleColl *mongo.Collection) {
+// SeedData provisions baseline permissions, the SuperAdmin role, and the bootstrap user.
+func SeedData(userColl, roleColl, permissionColl *mongo.Collection) {
 	log.Printf("database.SeedData start")
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
+
+	permissions := systemPermissionDefinitions()
+	if !seedSystemPermissions(ctx, permissionColl, permissions) {
+		return
+	}
+
+	roleID, ok := ensureSuperAdminRole(ctx, roleColl, systemPermissionKeys(permissions))
+	if !ok {
+		return
+	}
 
 	var existingUser models.User
 	err := userColl.FindOne(ctx, bson.M{"email": superAdminEmail}).Decode(&existingUser)
@@ -32,11 +43,6 @@ func SeedData(userColl, roleColl *mongo.Collection) {
 	}
 	if err != mongo.ErrNoDocuments {
 		log.Printf("database.SeedData user lookup failed: %v", err)
-		return
-	}
-
-	roleID, ok := ensureSuperAdminRole(ctx, roleColl)
-	if !ok {
 		return
 	}
 
@@ -66,9 +72,58 @@ func SeedData(userColl, roleColl *mongo.Collection) {
 	log.Printf("database.SeedData super admin provisioned email=%s", superAdminEmail)
 }
 
-func ensureSuperAdminRole(ctx context.Context, roleColl *mongo.Collection) (bson.ObjectID, bool) {
+func systemPermissionDefinitions() []models.Permission {
+	return []models.Permission{
+		{Key: models.PermissionViewProduct, Name: "View Product", Description: "View product records and product listing data."},
+		{Key: models.PermissionAddProduct, Name: "Add Product", Description: "Create new product records."},
+		{Key: models.PermissionEditProduct, Name: "Edit Product", Description: "Update existing product records."},
+		{Key: models.PermissionDeleteProduct, Name: "Delete Product", Description: "Delete product records."},
+		{Key: models.PermissionViewUsers, Name: "View Users", Description: "View user management records."},
+		{Key: models.PermissionManageUsers, Name: "Manage Users", Description: "Create, update, and delete user records."},
+		{Key: models.PermissionViewRoles, Name: "View Roles", Description: "View role management records."},
+		{Key: models.PermissionManageRoles, Name: "Manage Roles", Description: "Create, update, and delete role records."},
+		{Key: models.PermissionViewPermissions, Name: "View Permissions", Description: "View permission management records."},
+		{Key: models.PermissionManagePermissions, Name: "Manage Permissions", Description: "Create, update, and delete permission records."},
+	}
+}
+
+func systemPermissionKeys(permissions []models.Permission) []models.PermissionKey {
+	keys := make([]models.PermissionKey, 0, len(permissions))
+	for _, permission := range permissions {
+		keys = append(keys, permission.Key)
+	}
+	return keys
+}
+
+func seedSystemPermissions(ctx context.Context, permissionColl *mongo.Collection, permissions []models.Permission) bool {
 	now := time.Now()
-	permissions := models.AllSystemPermissions()
+	for _, permission := range permissions {
+		_, err := permissionColl.UpdateOne(
+			ctx,
+			bson.M{"key": permission.Key},
+			bson.M{
+				"$set": bson.M{
+					"key":         permission.Key,
+					"name":        permission.Name,
+					"description": permission.Description,
+					"updated_at":  now,
+				},
+				"$setOnInsert": bson.M{
+					"created_at": now,
+				},
+			},
+			options.UpdateOne().SetUpsert(true),
+		)
+		if err != nil {
+			log.Printf("database.SeedData permission upsert failed key=%s error=%v", permission.Key, err)
+			return false
+		}
+	}
+	return true
+}
+
+func ensureSuperAdminRole(ctx context.Context, roleColl *mongo.Collection, permissions []models.PermissionKey) (bson.ObjectID, bool) {
+	now := time.Now()
 
 	var role models.Role
 	err := roleColl.FindOne(ctx, bson.M{"name": superAdminRoleName}).Decode(&role)

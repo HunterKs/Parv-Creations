@@ -1,6 +1,6 @@
 /* Authentication Helper Functions */
 
-const API_BASE = `${API_BASE_URL}/admin`;
+const AUTH_API_BASE = `${API_BASE_URL}/admin`;
 
 /**
  * Check if the user is authenticated by looking for a valid session token
@@ -8,7 +8,7 @@ const API_BASE = `${API_BASE_URL}/admin`;
  */
 async function isAuthenticated() {
     try {
-        const response = await fetch(`${API_BASE}/auth/status`, {
+        const response = await fetch(`${AUTH_API_BASE}/auth/status`, {
             method: 'GET',
             credentials: 'include' // Important for sending cookies
         });
@@ -25,7 +25,7 @@ async function isAuthenticated() {
  */
 async function getCurrentUser() {
     try {
-        const response = await fetch(`${API_BASE}/auth/me`, {
+        const response = await fetch(`${AUTH_API_BASE}/auth/me`, {
             method: 'GET',
             credentials: 'include'
         });
@@ -43,7 +43,7 @@ async function getCurrentUser() {
  */
 async function logout() {
     try {
-        const response = await fetch(`${API_BASE}/auth/logout`, {
+        const response = await fetch(`${AUTH_API_BASE}/auth/logout`, {
             method: 'POST',
             credentials: 'include'
         });

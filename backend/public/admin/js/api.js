@@ -1,6 +1,6 @@
 /* API Client for Communicating with the Backend */
 
-const API_BASE = `${API_BASE_URL}/admin`;
+const API_CLIENT_BASE = `${API_BASE_URL}/admin`;
 
 /**
  * Make an HTTP request to the API
@@ -9,13 +9,17 @@ const API_BASE = `${API_BASE_URL}/admin`;
  * @returns {Promise<Response>}
  */
 async function apiRequest(endpoint, options = {}) {
-    const url = `${API_BASE}${endpoint}`;
+    const url = `${API_CLIENT_BASE}${endpoint}`;
 
     // Default headers
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers
     };
+    const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt');
+    if (token && !headers.Authorization) {
+        headers.Authorization = `Bearer ${token}`;
+    }
 
     // Include credentials for cookies (session)
     const fetchOptions = {
@@ -90,13 +94,16 @@ async function del(endpoint) {
  * @returns {Promise<Response>}
  */
 async function uploadFile(endpoint, formData) {
-    const url = `${API_BASE}${endpoint}`;
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include'
-        });
+    const url = `${API_CLIENT_BASE}${endpoint}`;
+    const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+	try {
+		const response = await fetch(url, {
+			method: 'POST',
+			headers,
+			body: formData,
+			credentials: 'include'
+		});
         return response;
     } catch (error) {
         console.error(`File upload to ${endpoint} failed:`, error);
@@ -109,7 +116,7 @@ window.api = {
     get,
     post,
     put,
-    delete: del,
-    uploadFile,
-    API_BASE
+	delete: del,
+	uploadFile,
+	API_BASE: API_CLIENT_BASE
 };

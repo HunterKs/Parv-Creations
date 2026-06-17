@@ -54,11 +54,12 @@ document.addEventListener('DOMContentLoaded', async function() {
  */
 async function loadRoles() {
     try {
-        const response = await api.get('/roles');
+        const response = await api.get('/roles', { limit: 100 });
         if (!response.ok) {
             throw new Error(`Failed to fetch roles: ${response.status}`);
         }
-        const roles = await response.json();
+        const payload = await response.json();
+        const roles = Array.isArray(payload) ? payload : (payload.data?.roles || []);
 
         const roleSelects = document.querySelectorAll('#edit-role, #add-role, select[name="role_id"]');
         roleSelects.forEach(select => {
@@ -137,14 +138,15 @@ async function saveUser(userId) {
     }
 
     try {
-        let response;
-        if (userId) {
-            // Update existing user
-            response = await api.put(`/users/${userId}`, userData);
-        } else {
-            // Create new user
-            response = await api.post('/users', userData);
-        }
+        const url = userId
+            ? `${API_BASE_URL}/admin/users/${encodeURIComponent(userId)}`
+            : `${API_BASE_URL}/admin/users`;
+        const response = await fetch(url, {
+            method: userId ? 'PUT' : 'POST',
+            credentials: 'include',
+            headers: authRequestHeaders(),
+            body: JSON.stringify(userData)
+        });
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -160,4 +162,13 @@ async function saveUser(userId) {
         console.error('Failed to save user:', error);
         showNotification(`Failed to save user: ${error.message}`, 'error');
     }
+}
+
+function authRequestHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt');
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
 }

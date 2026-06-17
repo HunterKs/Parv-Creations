@@ -42,8 +42,20 @@ func GenerateJWT(user models.User) (string, error) {
 		"exp":     time.Now().Add(TokenDuration).Unix(),
 		"iat":     time.Now().Unix(),
 	}
+	if user.Role != nil {
+		claims["role_name"] = user.Role.Name
+		claims["permissions"] = permissionKeysToStrings(user.Role.Permissions)
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(JWTSecret)
+}
+
+func permissionKeysToStrings(permissions []models.PermissionKey) []string {
+	values := make([]string, 0, len(permissions))
+	for _, permission := range permissions {
+		values = append(values, string(permission))
+	}
+	return values
 }
 
 // ParseJWT validates and parses a JWT token string into SessionClaims.
@@ -63,6 +75,21 @@ func ParseJWT(tokenString string) (*models.SessionClaims, error) {
 		}
 		if rid, ok := claims["role_id"].(string); ok {
 			sessionClaims.RoleID = rid
+		}
+		if roleName, ok := claims["role_name"].(string); ok {
+			sessionClaims.RoleName = roleName
+		}
+		if permissions, ok := claims["permissions"].([]interface{}); ok {
+			for _, permission := range permissions {
+				if value, ok := permission.(string); ok {
+					sessionClaims.Permissions = append(sessionClaims.Permissions, models.PermissionKey(value))
+				}
+			}
+		}
+		if permissions, ok := claims["permissions"].([]string); ok {
+			for _, permission := range permissions {
+				sessionClaims.Permissions = append(sessionClaims.Permissions, models.PermissionKey(permission))
+			}
 		}
 		if email, ok := claims["email"].(string); ok {
 			sessionClaims.Email = email

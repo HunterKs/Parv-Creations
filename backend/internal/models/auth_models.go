@@ -7,20 +7,19 @@ import (
 )
 
 // PermissionKey is the stable machine-readable identifier for an action.
-// Example: "products:write", "users:manage", "orders:read"
 type PermissionKey string
 
 const (
-	PermissionUsersRead         PermissionKey = "users:read"
-	PermissionUsersWrite        PermissionKey = "users:write"
-	PermissionUsersDelete       PermissionKey = "users:delete"
-	PermissionRolesRead         PermissionKey = "roles:read"
-	PermissionRolesWrite        PermissionKey = "roles:write"
-	PermissionRolesDelete       PermissionKey = "roles:delete"
-	PermissionPermissionsRead   PermissionKey = "permissions:read"
-	PermissionPermissionsWrite  PermissionKey = "permissions:write"
-	PermissionPermissionsDelete PermissionKey = "permissions:delete"
-	PermissionAuthManage        PermissionKey = "auth:manage"
+	PermissionViewProduct       PermissionKey = "view_product"
+	PermissionAddProduct        PermissionKey = "add_product"
+	PermissionEditProduct       PermissionKey = "edit_product"
+	PermissionDeleteProduct     PermissionKey = "delete_product"
+	PermissionViewUsers         PermissionKey = "view_users"
+	PermissionManageUsers       PermissionKey = "manage_users"
+	PermissionViewRoles         PermissionKey = "view_roles"
+	PermissionManageRoles       PermissionKey = "manage_roles"
+	PermissionViewPermissions   PermissionKey = "view_permissions"
+	PermissionManagePermissions PermissionKey = "manage_permissions"
 )
 
 // Permission represents a system permission document.
@@ -36,16 +35,16 @@ type Permission struct {
 // AllSystemPermissions returns every built-in permission key assigned to SuperAdmin.
 func AllSystemPermissions() []PermissionKey {
 	return []PermissionKey{
-		PermissionUsersRead,
-		PermissionUsersWrite,
-		PermissionUsersDelete,
-		PermissionRolesRead,
-		PermissionRolesWrite,
-		PermissionRolesDelete,
-		PermissionPermissionsRead,
-		PermissionPermissionsWrite,
-		PermissionPermissionsDelete,
-		PermissionAuthManage,
+		PermissionViewProduct,
+		PermissionAddProduct,
+		PermissionEditProduct,
+		PermissionDeleteProduct,
+		PermissionViewUsers,
+		PermissionManageUsers,
+		PermissionViewRoles,
+		PermissionManageRoles,
+		PermissionViewPermissions,
+		PermissionManagePermissions,
 	}
 }
 
@@ -100,9 +99,11 @@ type RememberMeToken struct {
 // We'll implement a simple session struct that can be signed and validated.
 // For now, we'll just define the claims we want in the token.
 type SessionClaims struct {
-	UserID    string `json:"user_id"`
-	RoleID    string `json:"role_id"`
-	Email     string `json:"email"`
-	ExpiresAt int64  `json:"exp"` // Standard JWT exp claim
-	IssuedAt  int64  `json:"iat"` // Standard JWT iat claim
+	UserID      string          `json:"user_id"`
+	RoleID      string          `json:"role_id"`
+	RoleName    string          `json:"role_name"`
+	Permissions []PermissionKey `json:"permissions"`
+	Email       string          `json:"email"`
+	ExpiresAt   int64           `json:"exp"` // Standard JWT exp claim
+	IssuedAt    int64           `json:"iat"` // Standard JWT iat claim
 }

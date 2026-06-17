@@ -41,11 +41,20 @@
                         </div>
                     </div>
 
+                    <div class="table-filters">
+                        <input type="text" id="roleSearch" placeholder="Search by name...">
+                        <div class="pagination-controls">
+                            <button type="button" id="rolePrevPage" class="btn btn-outline">Previous</button>
+                            <span id="rolePaginationInfo">Page 1 of 1</span>
+                            <button type="button" id="roleNextPage" class="btn btn-outline">Next</button>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="data-table" id="roles-table">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>#</th>
                                     <th>Name</th>
                                     <th>Description</th>
                                     <th>Permissions</th>

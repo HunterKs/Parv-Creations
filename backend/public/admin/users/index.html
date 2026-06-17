@@ -41,11 +41,28 @@
                         </div>
                     </div>
 
+                    <div class="table-filters">
+                        <input type="text" id="userSearch" placeholder="Search by name or email...">
+                        <select id="roleFilter">
+                            <option value="">All Roles</option>
+                        </select>
+                        <select id="statusFilter">
+                            <option value="">All Statuses</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                        <div class="pagination-controls">
+                            <button type="button" id="prevPage" class="btn btn-outline">Previous</button>
+                            <span id="paginationInfo">Page 1 of 1</span>
+                            <button type="button" id="nextPage" class="btn btn-outline">Next</button>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="data-table" id="users-table">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>#</th>
                                     <th>First Name</th>
                                     <th>Last Name</th>
                                     <th>Email</th>

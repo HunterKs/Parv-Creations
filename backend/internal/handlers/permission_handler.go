@@ -2,13 +2,17 @@ package handlers
 
 import (
 	"log"
+	"math"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/HunterKs/Parv-Creations/backend/internal/models"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // PermissionHandler handles permission CRUD operations.
@@ -25,7 +29,30 @@ func NewPermissionHandler(permissionColl *mongo.Collection) *PermissionHandler {
 func (h *PermissionHandler) ListPermissions(w http.ResponseWriter, r *http.Request) {
 	log.Printf("PermissionHandler.ListPermissions start")
 
-	cursor, err := h.permissionColl.Find(r.Context(), bson.M{})
+	query := r.URL.Query()
+	page := parsePositiveInt(query.Get("page"), 1)
+	limit := parsePositiveInt(query.Get("limit"), 10)
+	if limit > 100 {
+		limit = 100
+	}
+
+	filter := buildPermissionFilter(query.Get("search"))
+	sortBy := normalizePermissionSortField(query.Get("sort_by"))
+	sortOrder := parseSortOrder(query.Get("sort_order"))
+	skip := int64((page - 1) * limit)
+
+	total, err := h.permissionColl.CountDocuments(r.Context(), filter)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	findOptions := options.Find().
+		SetSkip(skip).
+		SetLimit(int64(limit)).
+		SetSort(bson.D{{Key: sortBy, Value: sortOrder}})
+
+	cursor, err := h.permissionColl.Find(r.Context(), filter, findOptions)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -41,7 +68,49 @@ func (h *PermissionHandler) ListPermissions(w http.ResponseWriter, r *http.Reque
 		permissions = []models.Permission{}
 	}
 
-	respondJSON(w, http.StatusOK, permissions)
+	totalPages := 0
+	if total > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(limit)))
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data": map[string]interface{}{
+			"permissions": permissions,
+			"pagination": map[string]interface{}{
+				"total":       total,
+				"page":        page,
+				"limit":       limit,
+				"total_pages": totalPages,
+			},
+		},
+	})
+}
+
+func buildPermissionFilter(search string) bson.M {
+	filter := bson.M{}
+
+	search = strings.TrimSpace(search)
+	if search != "" {
+		regex := bson.Regex{Pattern: regexp.QuoteMeta(search), Options: "i"}
+		filter["$or"] = bson.A{
+			bson.M{"key": regex},
+			bson.M{"name": regex},
+			bson.M{"description": regex},
+		}
+	}
+
+	return filter
+}
+
+func normalizePermissionSortField(sortBy string) string {
+	candidate := strings.TrimSpace(sortBy)
+	switch candidate {
+	case "key", "name", "description", "created_at", "updated_at":
+		return candidate
+	default:
+		return "created_at"
+	}
 }
 
 // CreatePermission handles POST /permissions.

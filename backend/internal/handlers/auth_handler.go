@@ -55,6 +55,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var role models.Role
+	if err := h.roleColl.FindOne(r.Context(), bson.M{"_id": user.RoleID}).Decode(&role); err != nil {
+		respondError(w, http.StatusForbidden, "Assigned role not found")
+		return
+	}
+	user.Role = &role
+
 	// Generate session token (JWT)
 	sessionToken, err := auth.GenerateJWT(user)
 	if err != nil {

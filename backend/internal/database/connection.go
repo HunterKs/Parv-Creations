@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -53,5 +54,37 @@ func ConnectProductionCluster() (*mongo.Client, *mongo.Database, error) {
 
 	// 6. Bind database reference to the targeted production namespace
 	db := client.Database(databaseName)
+	if err := ensureUserIndexes(ctx, db.Collection("users")); err != nil {
+		_ = client.Disconnect(context.Background())
+		return nil, nil, fmt.Errorf("user index initialization failed: %w", err)
+	}
+
 	return client, db, nil
+}
+
+func ensureUserIndexes(ctx context.Context, userColl *mongo.Collection) error {
+	indexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "role_id", Value: 1},
+				{Key: "is_active", Value: 1},
+			},
+			Options: options.Index().SetName("idx_users_role_active"),
+		},
+		{
+			Keys: bson.D{
+				{Key: "email", Value: 1},
+			},
+			Options: options.Index().SetName("idx_users_email_unique").SetUnique(true),
+		},
+		{
+			Keys: bson.D{
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index().SetName("idx_users_created_at_desc"),
+		},
+	}
+
+	_, err := userColl.Indexes().CreateMany(ctx, indexes)
+	return err
 }

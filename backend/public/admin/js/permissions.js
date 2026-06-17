@@ -1,8 +1,12 @@
 /* Permissions Management Page Script */
 
 let permissions = [];
+let currentPage = 1;
+let totalPages = 1;
+const limit = 10;
 
 document.addEventListener('DOMContentLoaded', function() {
+    setupFilters();
     loadPermissions();
 
     const addButton = document.getElementById('add-permission-btn');
@@ -23,24 +27,67 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+function setupFilters() {
+    const searchInput = document.getElementById('permissionSearch');
+    const prevPage = document.getElementById('permissionPrevPage');
+    const nextPage = document.getElementById('permissionNextPage');
+
+    let searchTimer;
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                currentPage = 1;
+                loadPermissions();
+            }, 250);
+        });
+    }
+
+    if (prevPage) {
+        prevPage.addEventListener('click', () => {
+            if (currentPage <= 1) return;
+            currentPage--;
+            loadPermissions();
+        });
+    }
+
+    if (nextPage) {
+        nextPage.addEventListener('click', () => {
+            if (currentPage >= totalPages) return;
+            currentPage++;
+            loadPermissions();
+        });
+    }
+}
+
 async function loadPermissions() {
     const tableBody = document.querySelector('#permissions-table tbody');
     if (!tableBody) return;
 
+    const searchVal = encodeURIComponent(document.getElementById('permissionSearch')?.value.trim() || '');
+    const url = `${API_BASE_URL}/permissions?page=${currentPage}&search=${searchVal}&limit=${limit}`;
+
     tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Loading permissions...</td></tr>';
 
     try {
-        const response = await fetch(`${API_BASE_URL}/permissions`, {
+        const response = await fetch(url, {
             method: 'GET',
             credentials: 'include'
         });
         if (!response.ok) throw new Error(`Failed to fetch permissions: ${response.status}`);
 
-        permissions = await response.json();
+        const payload = await response.json();
+        permissions = Array.isArray(payload) ? payload : (payload.data?.permissions || []);
+        const pagination = payload.data?.pagination || { page: 1, total_pages: 1, total: permissions.length, limit };
+
+        currentPage = pagination.page || 1;
+        totalPages = pagination.total_pages || 1;
+
         renderPermissions(tableBody);
+        renderPagination(pagination);
     } catch (error) {
         console.error('Failed to load permissions:', error);
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Failed to load permissions</td></tr>';
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center">Failed to load permissions: ${escapeHTML(error.message)}</td></tr>`;
         showNotification(`Failed to load permissions: ${error.message}`, 'error');
     }
 }
@@ -53,10 +100,11 @@ function renderPermissions(tableBody) {
         return;
     }
 
-    permissions.forEach((permission) => {
+    permissions.forEach((permission, index) => {
+        const serialNumber = ((currentPage - 1) * limit) + (index + 1);
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td data-label="ID">${escapeHTML(permission.id || '')}</td>
+            <td data-label="#">${serialNumber}</td>
             <td data-label="Key"><span class="permission-tag">${escapeHTML(permission.key || '')}</span></td>
             <td data-label="Name">${escapeHTML(permission.name || '')}</td>
             <td data-label="Description">${escapeHTML(permission.description || '')}</td>
@@ -80,6 +128,22 @@ function renderPermissions(tableBody) {
     tableBody.querySelectorAll('[data-action="delete"]').forEach((button) => {
         button.addEventListener('click', () => deletePermission(button.dataset.id));
     });
+}
+
+function renderPagination(pagination) {
+    const paginationInfo = document.getElementById('permissionPaginationInfo');
+    const prevPage = document.getElementById('permissionPrevPage');
+    const nextPage = document.getElementById('permissionNextPage');
+
+    if (paginationInfo) {
+        paginationInfo.textContent = `Page ${pagination.page || 1} of ${pagination.total_pages || 1} (${pagination.total || 0} permissions)`;
+    }
+    if (prevPage) {
+        prevPage.disabled = (pagination.page || 1) <= 1;
+    }
+    if (nextPage) {
+        nextPage.disabled = (pagination.page || 1) >= (pagination.total_pages || 1);
+    }
 }
 
 function openPermissionForm(permission = null) {
@@ -110,7 +174,7 @@ async function savePermission() {
         return;
     }
 
-    const url = id ? `${API_BASE_URL}/permissions/${id}` : `${API_BASE_URL}/permissions`;
+    const url = id ? `${API_BASE_URL}/permissions/${encodeURIComponent(id)}` : `${API_BASE_URL}/permissions`;
     const method = id ? 'PUT' : 'POST';
 
     try {
@@ -138,7 +202,7 @@ async function deletePermission(id) {
     if (!id || !confirm('Delete this permission?')) return;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/permissions/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/permissions/${encodeURIComponent(id)}`, {
             method: 'DELETE',
             credentials: 'include'
         });

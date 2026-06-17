@@ -89,10 +89,10 @@ async function loadPermissionsForRole(selectedPermissions = []) {
     // we'll use a common set of permissions for demonstration
     // In a real app, you would fetch this from /api/v1/admin/permissions or similar
     const commonPermissions = [
-        'users:read', 'users:create', 'users:update', 'users:delete',
-        'roles:read', 'roles:create', 'roles:update', 'roles:delete',
-        'products:read', 'products:create', 'products:update', 'products:delete',
-        'orders:read', 'orders:create', 'orders:update', 'orders:delete'
+        'view_product', 'add_product', 'edit_product', 'delete_product',
+        'view_users', 'manage_users',
+        'view_roles', 'manage_roles',
+        'view_permissions', 'manage_permissions'
     ];
 
     const container = document.querySelector('.permissions-container');
@@ -155,14 +155,15 @@ async function saveRole(roleId) {
     }
 
     try {
-        let response;
-        if (roleId) {
-            // Update existing role
-            response = await api.put(`/roles/${roleId}`, roleData);
-        } else {
-            // Create new role
-            response = await api.post('/roles', roleData);
-        }
+        const url = roleId
+            ? `${API_BASE_URL}/admin/roles/${encodeURIComponent(roleId)}`
+            : `${API_BASE_URL}/admin/roles`;
+        const response = await fetch(url, {
+            method: roleId ? 'PUT' : 'POST',
+            credentials: 'include',
+            headers: authRequestHeaders(),
+            body: JSON.stringify(roleData)
+        });
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -178,4 +179,13 @@ async function saveRole(roleId) {
         console.error('Failed to save role:', error);
         showNotification(`Failed to save role: ${error.message}`, 'error');
     }
+}
+
+function authRequestHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt');
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
 }

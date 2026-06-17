@@ -27,6 +27,36 @@
     justify-content: center;
 }
 
+.table-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.table-filters input,
+.table-filters select {
+    min-height: 2.5rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius);
+    background-color: white;
+    color: #000000 !important;
+}
+
+.table-filters input {
+    min-width: 260px;
+    flex: 1;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
 /* Status Badges */
 .status-badge {
     display: inline-block;

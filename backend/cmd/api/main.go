@@ -31,7 +31,7 @@ func main() {
 	rememberMeColl := db.Collection("remember_me_tokens")
 	permissionColl := db.Collection("permissions")
 
-	database.SeedData(userColl, roleColl)
+	database.SeedData(userColl, roleColl, permissionColl)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userColl, roleColl, rememberMeColl)

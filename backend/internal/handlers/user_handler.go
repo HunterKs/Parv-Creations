@@ -2,7 +2,11 @@ package handlers
 
 import (
 	"log"
+	"math"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/HunterKs/Parv-Creations/backend/internal/auth"
@@ -10,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // UserHandler handles user and role CRUD operations.
@@ -32,11 +37,39 @@ func parseObjectID(hex string) (bson.ObjectID, bool) {
 }
 
 // GetUsers handles GET /users
-// Returns a list of users (without password hashes)
+// Returns a paginated list of users (without password hashes).
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	log.Printf("UserHandler.GetUsers start")
 
-	cursor, err := h.userColl.Find(r.Context(), bson.M{})
+	query := r.URL.Query()
+	page := parsePositiveInt(query.Get("page"), 1)
+	limit := parsePositiveInt(query.Get("limit"), 10)
+	if limit > 100 {
+		limit = 100
+	}
+
+	filter, ok := buildUserFilter(query.Get("search"), query.Get("role_id"), query.Get("is_active"))
+	if !ok {
+		respondError(w, http.StatusBadRequest, "Invalid user filter")
+		return
+	}
+
+	sortBy := normalizeUserSortField(query.Get("sort_by"))
+	sortOrder := parseSortOrder(query.Get("sort_order"))
+	skip := int64((page - 1) * limit)
+
+	total, err := h.userColl.CountDocuments(r.Context(), filter)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	findOptions := options.Find().
+		SetSkip(skip).
+		SetLimit(int64(limit)).
+		SetSort(bson.D{{Key: sortBy, Value: sortOrder}})
+
+	cursor, err := h.userColl.Find(r.Context(), filter, findOptions)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -48,12 +81,105 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if users == nil {
+		users = []models.User{}
+	}
 
 	// Remove password hashes from the response
 	for i := range users {
 		users[i].PasswordHash = ""
 	}
-	respondJSON(w, http.StatusOK, users)
+
+	totalPages := 0
+	if total > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(limit)))
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data": map[string]interface{}{
+			"users": users,
+			"pagination": map[string]interface{}{
+				"total":       total,
+				"page":        page,
+				"limit":       limit,
+				"total_pages": totalPages,
+			},
+		},
+	})
+}
+
+func parsePositiveInt(value string, fallback int) int {
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 1 {
+		return fallback
+	}
+	return parsed
+}
+
+func buildUserFilter(search, roleID, isActive string) (bson.M, bool) {
+	filter := bson.M{}
+
+	search = strings.TrimSpace(search)
+	if search != "" {
+		regex := bson.Regex{Pattern: regexp.QuoteMeta(search), Options: "i"}
+		filter["$or"] = bson.A{
+			bson.M{"email": regex},
+			bson.M{"first_name": regex},
+			bson.M{"last_name": regex},
+		}
+	}
+
+	roleID = strings.TrimSpace(roleID)
+	if roleID != "" {
+		objectID, ok := parseObjectID(roleID)
+		if !ok {
+			return nil, false
+		}
+		filter["role_id"] = objectID
+	}
+
+	isActive = strings.TrimSpace(strings.ToLower(isActive))
+	if isActive != "" {
+		active, ok := parseBoolFilter(isActive)
+		if !ok {
+			return nil, false
+		}
+		filter["is_active"] = active
+	}
+
+	return filter, true
+}
+
+func parseBoolFilter(value string) (bool, bool) {
+	switch value {
+	case "true", "1", "active":
+		return true, true
+	case "false", "0", "inactive":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func normalizeUserSortField(sortBy string) string {
+	candidate := strings.TrimSpace(sortBy)
+	switch candidate {
+	case "email", "first_name", "last_name", "role_id", "is_active", "last_login_at", "created_at", "updated_at":
+		return candidate
+	default:
+		return "created_at"
+	}
+}
+
+func parseSortOrder(value string) int {
+	if value == "1" {
+		return 1
+	}
+	return -1
 }
 
 // GetUserByID handles GET /users/{id}
@@ -262,7 +388,30 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 	log.Printf("UserHandler.GetRoles start")
 
-	cursor, err := h.roleColl.Find(r.Context(), bson.M{})
+	query := r.URL.Query()
+	page := parsePositiveInt(query.Get("page"), 1)
+	limit := parsePositiveInt(query.Get("limit"), 10)
+	if limit > 100 {
+		limit = 100
+	}
+
+	filter := buildRoleFilter(query.Get("search"))
+	sortBy := normalizeRoleSortField(query.Get("sort_by"))
+	sortOrder := parseSortOrder(query.Get("sort_order"))
+	skip := int64((page - 1) * limit)
+
+	total, err := h.roleColl.CountDocuments(r.Context(), filter)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	findOptions := options.Find().
+		SetSkip(skip).
+		SetLimit(int64(limit)).
+		SetSort(bson.D{{Key: sortBy, Value: sortOrder}})
+
+	cursor, err := h.roleColl.Find(r.Context(), filter, findOptions)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -274,7 +423,52 @@ func (h *UserHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondJSON(w, http.StatusOK, roles)
+	if roles == nil {
+		roles = []models.Role{}
+	}
+
+	totalPages := 0
+	if total > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(limit)))
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data": map[string]interface{}{
+			"roles": roles,
+			"pagination": map[string]interface{}{
+				"total":       total,
+				"page":        page,
+				"limit":       limit,
+				"total_pages": totalPages,
+			},
+		},
+	})
+}
+
+func buildRoleFilter(search string) bson.M {
+	filter := bson.M{}
+
+	search = strings.TrimSpace(search)
+	if search != "" {
+		regex := bson.Regex{Pattern: regexp.QuoteMeta(search), Options: "i"}
+		filter["$or"] = bson.A{
+			bson.M{"name": regex},
+			bson.M{"description": regex},
+		}
+	}
+
+	return filter
+}
+
+func normalizeRoleSortField(sortBy string) string {
+	candidate := strings.TrimSpace(sortBy)
+	switch candidate {
+	case "name", "description", "created_at", "updated_at":
+		return candidate
+	default:
+		return "created_at"
+	}
 }
 
 // GetRoleByID handles GET /roles/{id}
