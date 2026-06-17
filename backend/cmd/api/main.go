@@ -92,6 +92,23 @@ func main() {
 	api.HandleFunc("/permissions/{id}", permissionHandler.UpdatePermission).Methods("PUT")
 	api.HandleFunc("/permissions/{id}", permissionHandler.DeletePermission).Methods("DELETE")
 
+	r.HandleFunc("/about", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "public/client/about.html")
+	}).Methods("GET")
+	r.HandleFunc("/contact", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "public/client/contact.html")
+	}).Methods("GET")
+	r.HandleFunc("/privacy-policy", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "public/client/privacy.html")
+	}).Methods("GET")
+	r.HandleFunc("/terms-of-service", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "public/client/terms.html")
+	}).Methods("GET")
+
+	// Mount static asset route for public visitor view
+	clientFileServer := http.FileServer(http.Dir("public/client"))
+	r.PathPrefix("/").Handler(http.StripPrefix("/", clientFileServer))
+
 	// Set up HTTP server
 	port := os.Getenv("PORT")
 	if port == "" {
